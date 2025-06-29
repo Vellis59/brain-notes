@@ -1,0 +1,3104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NotesApp - Prise de notes moderne</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: #f8f9fa;
+            color: #2d3748;
+            line-height: 1.6;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 320px;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .app-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 10px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: #f7fafc;
+            transition: all 0.2s;
+            margin-bottom: 15px;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #4299e1;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .new-note-btn, .new-folder-btn, .settings-btn {
+            flex: 1;
+            padding: 10px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .settings-btn {
+            width: 100%;
+            margin-top: 8px;
+            background: #6b46c1;
+            color: white;
+        }
+
+        .settings-btn:hover {
+            background: #553c9a;
+        }
+
+        .new-note-btn {
+            background: #4299e1;
+            color: white;
+        }
+
+        .new-note-btn:hover {
+            background: #3182ce;
+        }
+
+        .new-folder-btn {
+            background: #38a169;
+            color: white;
+        }
+
+        .new-folder-btn:hover {
+            background: #2f855a;
+        }
+
+        .notes-tree {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .tree-item {
+            margin-bottom: 2px;
+        }
+
+        .folder-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #4a5568;
+            transition: all 0.2s;
+            user-select: none;
+            font-size: 13px;
+            min-height: 28px;
+        }
+
+        .folder-item:hover {
+            background: #f7fafc;
+        }
+
+        .folder-item.selected {
+            background: #e6fffa;
+            border: 1px solid #4299e1;
+            border-radius: 4px;
+        }
+
+        .folder-toggle {
+            margin-right: 6px;
+            transition: transform 0.2s;
+            font-size: 10px;
+            width: 12px;
+            text-align: center;
+            color: #718096;
+            font-weight: bold;
+        }
+
+        .folder-toggle.expanded {
+            transform: rotate(90deg);
+        }
+
+        .folder-icon {
+            margin-right: 6px;
+            color: #ed8936;
+            font-size: 14px;
+        }
+
+        .folder-name {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .folder-actions {
+            opacity: 0;
+            transition: opacity 0.2s;
+            margin-left: 4px;
+            display: flex;
+            gap: 2px;
+        }
+
+        .folder-item:hover .folder-actions {
+            opacity: 1;
+        }
+
+        .folder-action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 2px;
+            font-size: 10px;
+            transition: background 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 16px;
+            height: 16px;
+            color: #718096;
+        }
+
+        .folder-action-btn:hover {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .folder-action-btn:active {
+            background: #cbd5e0;
+        }
+
+        .folder-children {
+            padding-left: 16px;
+            overflow: hidden;
+            transition: max-height 0.2s ease;
+            border-left: 1px solid #e2e8f0;
+            margin-left: 6px;
+            position: relative;
+        }
+
+        .folder-children.collapsed {
+            max-height: 0;
+        }
+
+        .folder-children::before {
+            content: '';
+            position: absolute;
+            left: -1px;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: linear-gradient(to bottom, #e2e8f0, transparent);
+        }
+
+        .note-item {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            margin-bottom: 1px;
+            background: transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            font-size: 12px;
+            min-height: 24px;
+        }
+
+        .note-item:hover {
+            background: #f7fafc;
+            border-color: #e2e8f0;
+        }
+
+        .note-item.active {
+            background: #e6fffa;
+            border-color: #4299e1;
+        }
+
+        .note-icon {
+            margin-right: 6px;
+            color: #4299e1;
+            font-size: 12px;
+        }
+
+        .note-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .note-title {
+            font-weight: 500;
+            font-size: 12px;
+            color: #2d3748;
+            margin-bottom: 1px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            line-height: 1.2;
+        }
+
+        .note-preview {
+            font-size: 11px;
+            color: #718096;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            line-height: 1.1;
+        }
+
+        .note-date {
+            font-size: 10px;
+            color: #a0aec0;
+            margin-top: 1px;
+        }
+
+        /* Main content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+        }
+
+        .editor-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .note-title-input {
+            flex: 1;
+            font-size: 24px;
+            font-weight: 700;
+            border: none;
+            outline: none;
+            color: #1a202c;
+            background: transparent;
+        }
+
+        .note-title-input::placeholder {
+            color: #a0aec0;
+        }
+
+        .editor-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .view-toggle {
+            display: flex;
+            background: #f7fafc;
+            border-radius: 6px;
+            padding: 2px;
+            margin-right: 10px;
+        }
+
+        .view-btn {
+            padding: 6px 12px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 12px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .view-btn.active {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .action-btn {
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #4a5568;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #f7fafc;
+            border-color: #cbd5e0;
+        }
+
+        .delete-btn {
+            color: #e53e3e;
+            border-color: #fed7d7;
+        }
+
+        .delete-btn:hover {
+            background: #fed7d7;
+        }
+
+        .editor-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .editor-pane {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #e2e8f0;
+        }
+
+        .editor-pane.full-width {
+            border-right: none;
+        }
+
+        .pane-header {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        .note-editor {
+            width: 100%;
+            height: 100%;
+            border: none;
+            outline: none;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: none;
+            font-family: 'JetBrains Mono', 'Monaco', 'Consolas', monospace;
+            color: #2d3748;
+            padding: 20px;
+        }
+
+        .note-editor::placeholder {
+            color: #a0aec0;
+        }
+
+        .preview-pane {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .markdown-content {
+            max-width: none;
+            color: #2d3748;
+            line-height: 1.7;
+        }
+
+        .markdown-content h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 0 16px 0;
+            color: #1a202c;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 8px;
+        }
+
+        .markdown-content h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 24px 0 16px 0;
+            color: #2d3748;
+        }
+
+        .markdown-content h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 20px 0 12px 0;
+            color: #4a5568;
+        }
+
+        .markdown-content p {
+            margin-bottom: 16px;
+        }
+
+        .markdown-content ul, .markdown-content ol {
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+
+        .markdown-content li {
+            margin-bottom: 4px;
+        }
+
+        .markdown-content blockquote {
+            border-left: 4px solid #4299e1;
+            padding: 16px 20px;
+            margin: 16px 0;
+            background: #f7fafc;
+            border-radius: 0 6px 6px 0;
+        }
+
+        .markdown-content code {
+            background: #edf2f7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'JetBrains Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 13px;
+        }
+
+        .markdown-content pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+
+        .markdown-content pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+
+        .markdown-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+
+        .markdown-content th, .markdown-content td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .markdown-content th {
+            background: #f7fafc;
+            font-weight: 600;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: #a0aec0;
+            text-align: center;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .empty-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .empty-description {
+            font-size: 14px;
+            max-width: 300px;
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            min-width: 300px;
+            max-width: 90vw;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal.large {
+            min-width: 500px;
+            max-width: 600px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #1a202c;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 8px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .modal-btn.primary {
+            background: #4299e1;
+            color: white;
+            border-color: #4299e1;
+        }
+
+        .modal-btn.primary:hover {
+            background: #3182ce;
+        }
+
+        .modal-btn:hover {
+            background: #f7fafc;
+        }
+
+        /* Settings specific styles */
+        .settings-section {
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .settings-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .settings-section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 12px;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+
+        .setting-label {
+            font-size: 14px;
+            color: #4a5568;
+            flex: 1;
+        }
+
+        .setting-description {
+            font-size: 12px;
+            color: #718096;
+            margin-top: 2px;
+        }
+
+        .setting-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 40px;
+            height: 20px;
+            background: #cbd5e0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .toggle-switch.active {
+            background: #4299e1;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+        }
+
+        .toggle-switch.active::after {
+            transform: translateX(20px);
+        }
+
+        .setting-select, .setting-input {
+            padding: 6px 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            font-size: 13px;
+            min-width: 120px;
+        }
+
+        .setting-select:focus, .setting-input:focus {
+            outline: none;
+            border-color: #4299e1;
+        }
+
+        .color-picker-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-preview {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+        }
+
+        .theme-preview {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .theme-option {
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        .theme-option.selected {
+            border-color: #4299e1;
+            background: #e6fffa;
+        }
+
+        .theme-option.light {
+            background: white;
+            color: #2d3748;
+        }
+
+        .theme-option.dark {
+            background: #2d3748;
+            color: white;
+        }
+
+        .export-format-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .format-option {
+            padding: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            background: white;
+        }
+
+        .format-option:hover {
+            border-color: #4299e1;
+            background: #f7fafc;
+        }
+
+        .format-option.selected {
+            border-color: #4299e1;
+            background: #e6fffa;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+        }
+
+        .format-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .format-title {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 4px;
+        }
+
+        .format-description {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .setting-label input[type="radio"] {
+            margin-right: 8px;
+        }
+
+        .progress-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .progress-modal {
+            background: white;
+            border-radius: 12px;
+            padding: 32px;
+            text-align: center;
+            min-width: 300px;
+        }
+
+        .progress-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #4299e1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-text {
+            font-size: 16px;
+            color: #2d3748;
+            margin-bottom: 8px;
+        }
+
+        .progress-detail {
+            font-size: 14px;
+            color: #718096;
+        }
+
+        /* Mobile responsiveness */
+        .mobile-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .mobile-toggle {
+                display: block;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                z-index: 999;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                width: 100%;
+            }
+
+            .editor-header {
+                padding: 15px 20px;
+                padding-top: 70px;
+            }
+
+            .editor-container {
+                flex-direction: column;
+            }
+
+            .editor-pane {
+                border-right: none;
+                border-bottom: 1px solid #e2e8f0;
+            }
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <button class="mobile-toggle" onclick="toggleSidebar()">☰</button>
+        
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1 class="app-title">NotesApp</h1>
+                <input type="text" class="search-box" placeholder="Rechercher..." onkeyup="searchNotes(this.value)">
+                <div class="action-buttons">
+                    <button class="new-note-btn" onclick="createNewNote()">📝 Note</button>
+                    <button class="new-folder-btn" onclick="showCreateFolderModal()">📁 Dossier</button>
+                </div>
+                <button class="settings-btn" onclick="showSettingsModal()">⚙️ Paramètres</button>
+            </div>
+            <div class="notes-tree" id="notesTree">
+                <!-- L'arborescence sera générée ici -->
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div id="emptyState" class="empty-state">
+                <div class="empty-icon">📝</div>
+                <div class="empty-title">Bienvenue dans NotesApp</div>
+                <div class="empty-description">Créez votre première note ou dossier pour commencer à organiser vos idées</div>
+            </div>
+
+            <div id="editorContainer" style="display: none; height: 100%; flex-direction: column;">
+                <div class="editor-header">
+                    <input type="text" class="note-title-input" placeholder="Titre de la note..." id="noteTitleInput" onkeyup="updateNoteTitle()">
+                    <div class="editor-actions">
+                        <div class="view-toggle">
+                            <button class="view-btn active" onclick="setViewMode('edit')" id="editBtn">✏️ Édition</button>
+                            <button class="view-btn" onclick="setViewMode('preview')" id="previewBtn">👁️ Aperçu</button>
+                            <button class="view-btn" onclick="setViewMode('split')" id="splitBtn">⫷ Split</button>
+                        </div>
+                        <button class="action-btn" onclick="saveNote()">💾 Sauvegarder</button>
+                        <button class="action-btn delete-btn" onclick="deleteCurrentNote()">🗑️ Supprimer</button>
+                    </div>
+                </div>
+                <div class="editor-container">
+                    <div class="editor-pane" id="editorPane">
+                        <div class="pane-header">Markdown</div>
+                        <textarea class="note-editor" placeholder="Commencez à écrire votre note en Markdown..." id="noteEditor" onkeyup="updateNoteContent()"></textarea>
+                    </div>
+                    <div class="preview-pane" id="previewPane" style="display: none;">
+                        <div class="pane-header">Aperçu</div>
+                        <div class="markdown-content" id="markdownPreview"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pour créer un dossier -->
+    <div id="createFolderModal" class="modal-overlay" style="display: none;">
+        <div class="modal">
+            <div class="modal-title">Créer un nouveau dossier</div>
+            <input type="text" class="modal-input" placeholder="Nom du dossier" id="folderNameInput">
+            <div class="modal-actions">
+                <button class="modal-btn" onclick="hideCreateFolderModal()">Annuler</button>
+                <button class="modal-btn primary" onclick="createFolder()">Créer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal des paramètres -->
+    <div id="settingsModal" class="modal-overlay" style="display: none;">
+        <div class="modal large">
+            <div class="modal-title">⚙️ Paramètres</div>
+            
+            <!-- Section Apparence -->
+            <div class="settings-section">
+                <div class="settings-section-title">🎨 Apparence</div>
+                
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Thème</div>
+                        <div class="setting-description">Choisir l'apparence de l'interface</div>
+                    </div>
+                    <div class="setting-control">
+                        <select class="setting-select" id="themeSelect" onchange="changeTheme(this.value)">
+                            <option value="light">Clair</option>
+                            <option value="dark">Sombre</option>
+                            <option value="auto">Automatique</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Police de l'éditeur</div>
+                        <div class="setting-description">Police utilisée pour l'édition</div>
+                    </div>
+                    <div class="setting-control">
+                        <select class="setting-select" id="fontSelect" onchange="changeEditorFont(this.value)">
+                            <option value="monaco">Monaco</option>
+                            <option value="jetbrains">JetBrains Mono</option>
+                            <option value="fira">Fira Code</option>
+                            <option value="consolas">Consolas</option>
+                            <option value="system">Police système</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Taille de police</div>
+                        <div class="setting-description">Taille du texte dans l'éditeur</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="range" min="12" max="20" value="14" id="fontSizeSlider" onchange="changeFontSize(this.value)">
+                        <span id="fontSizeLabel">14px</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Éditeur -->
+            <div class="settings-section">
+                <div class="settings-section-title">✏️ Éditeur</div>
+                
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Mode par défaut</div>
+                        <div class="setting-description">Mode d'affichage au démarrage</div>
+                    </div>
+                    <div class="setting-control">
+                        <select class="setting-select" id="defaultViewSelect" onchange="changeDefaultView(this.value)">
+                            <option value="edit">Édition</option>
+                            <option value="preview">Aperçu</option>
+                            <option value="split">Split</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Sauvegarde automatique</div>
+                        <div class="setting-description">Sauvegarder automatiquement pendant la frappe</div>
+                    </div>
+                    <div class="setting-control">
+                        <div class="toggle-switch" id="autoSaveToggle" onclick="toggleAutoSave()"></div>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Numérotation des lignes</div>
+                        <div class="setting-description">Afficher les numéros de ligne dans l'éditeur</div>
+                    </div>
+                    <div class="setting-control">
+                        <div class="toggle-switch" id="lineNumbersToggle" onclick="toggleLineNumbers()"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Interface -->
+            <div class="settings-section">
+                <div class="settings-section-title">🖥️ Interface</div>
+                
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Largeur de la barre latérale</div>
+                        <div class="setting-description">Ajuster la taille de la sidebar</div>
+                    </div>
+                    <div class="setting-control">
+                        <input type="range" min="250" max="450" value="320" id="sidebarWidthSlider" onchange="changeSidebarWidth(this.value)">
+                        <span id="sidebarWidthLabel">320px</span>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Affichage des dates</div>
+                        <div class="setting-description">Format d'affichage des dates</div>
+                    </div>
+                    <div class="setting-control">
+                        <select class="setting-select" id="dateFormatSelect" onchange="changeDateFormat(this.value)">
+                            <option value="short">Court (01/01)</option>
+                            <option value="medium">Moyen (01/01/2024)</option>
+                            <option value="long">Long (1 janvier 2024)</option>
+                            <option value="relative">Relatif (il y a 2 jours)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Animation des transitions</div>
+                        <div class="setting-description">Activer les animations de l'interface</div>
+                    </div>
+                    <div class="setting-control">
+                        <div class="toggle-switch active" id="animationsToggle" onclick="toggleAnimations()"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Données -->
+            <div class="settings-section">
+                <div class="settings-section-title">💾 Données</div>
+                
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Synchronisation locale</div>
+                        <div class="setting-description">Sauvegarder automatiquement sur votre ordinateur</div>
+                    </div>
+                    <div class="setting-control">
+                        <div class="toggle-switch" id="localSyncToggle" onclick="toggleLocalSync()"></div>
+                    </div>
+                </div>
+
+                <div class="setting-item" id="localSyncSettings" style="display: none;">
+                    <div>
+                        <div class="setting-label">Dossier de synchronisation</div>
+                        <div class="setting-description" id="syncPathDisplay">Aucun dossier sélectionné</div>
+                    </div>
+                    <div class="setting-control">
+                        <button class="modal-btn" onclick="selectLocalSyncFolder()" id="selectFolderBtn">
+                            📁 Choisir dossier
+                        </button>
+                    </div>
+                </div>
+
+                <div class="setting-item" id="fsaNotSupported" style="display: none;">
+                    <div>
+                        <div class="setting-label">⚠️ Fonctionnalité non supportée</div>
+                        <div class="setting-description">Votre navigateur ne supporte pas la synchronisation locale. Utilisez Chrome ou Edge.</div>
+                    </div>
+                </div>
+                
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Sauvegarde automatique cloud</div>
+                        <div class="setting-description">Synchroniser avec le stockage local</div>
+                    </div>
+                    <div class="setting-control">
+                        <div class="toggle-switch active" id="cloudSyncToggle" onclick="toggleCloudSync()"></div>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Historique des versions</div>
+                        <div class="setting-description">Garder un historique des modifications</div>
+                    </div>
+                    <div class="setting-control">
+                        <div class="toggle-switch" id="versionHistoryToggle" onclick="toggleVersionHistory()"></div>
+                    </div>
+                </div>
+
+                <div class="setting-item" id="syncActions" style="display: none;">
+                    <div>
+                        <div class="setting-label">Actions de synchronisation</div>
+                        <div class="setting-description">Forcer la synchronisation ou exporter tout</div>
+                    </div>
+                    <div class="setting-control">
+                        <button class="modal-btn" onclick="forceSyncToLocal()" style="margin-right: 8px;">
+                            🔄 Sync forcée
+                        </button>
+                        <button class="modal-btn" onclick="exportAllToLocal()">
+                            📤 Tout exporter
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-btn" onclick="resetSettings()">Réinitialiser</button>
+                <button class="modal-btn primary" onclick="hideSettingsModal()">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal d'export avancé -->
+    <div id="advancedExportModal" class="modal-overlay" style="display: none;">
+        <div class="modal large">
+            <div class="modal-title">🚀 Export Avancé</div>
+            
+            <!-- Section Type d'export -->
+            <div class="settings-section">
+                <div class="settings-section-title">📁 Que voulez-vous exporter ?</div>
+                
+                <div class="setting-item">
+                    <div>
+                        <label class="setting-label">
+                            <input type="radio" name="exportScope" value="current" checked onchange="updateExportOptions()">
+                            Note actuelle
+                        </label>
+                        <div class="setting-description">Exporter seulement la note en cours d'édition</div>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div>
+                        <label class="setting-label">
+                            <input type="radio" name="exportScope" value="folder" onchange="updateExportOptions()">
+                            Dossier sélectionné
+                        </label>
+                        <div class="setting-description">Exporter toutes les notes d'un dossier</div>
+                    </div>
+                    <div class="setting-control">
+                        <select class="setting-select" id="folderSelect" disabled>
+                            <option value="">Choisir un dossier...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div>
+                        <label class="setting-label">
+                            <input type="radio" name="exportScope" value="all" onchange="updateExportOptions()">
+                            Toutes les notes
+                        </label>
+                        <div class="setting-description">Exporter l'intégralité de votre collection</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Format d'export -->
+            <div class="settings-section">
+                <div class="settings-section-title">📄 Format d'export</div>
+                
+                <div class="export-format-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                    
+                    <div class="format-option" onclick="selectExportFormat('pdf')">
+                        <div class="format-icon">📄</div>
+                        <div class="format-title">PDF</div>
+                        <div class="format-description">Document PDF avec mise en page</div>
+                    </div>
+                    
+                    <div class="format-option" onclick="selectExportFormat('html')">
+                        <div class="format-icon">🌐</div>
+                        <div class="format-title">HTML</div>
+                        <div class="format-description">Page web avec styles</div>
+                    </div>
+                    
+                    <div class="format-option" onclick="selectExportFormat('docx')">
+                        <div class="format-icon">📝</div>
+                        <div class="format-title">DOCX</div>
+                        <div class="format-description">Document Microsoft Word</div>
+                    </div>
+                    
+                    <div class="format-option" onclick="selectExportFormat('txt')">
+                        <div class="format-icon">📋</div>
+                        <div class="format-title">TXT</div>
+                        <div class="format-description">Texte brut sans formatage</div>
+                    </div>
+                    
+                    <div class="format-option" onclick="selectExportFormat('epub')">
+                        <div class="format-icon">📚</div>
+                        <div class="format-title">EPUB</div>
+                        <div class="format-description">Livre électronique</div>
+                    </div>
+                    
+                    <div class="format-option" onclick="selectExportFormat('zip')">
+                        <div class="format-icon">🗜️</div>
+                        <div class="format-title">ZIP</div>
+                        <div class="format-description">Archive avec tous les fichiers</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Options d'export -->
+            <div class="settings-section" id="exportOptions">
+                <div class="settings-section-title">⚙️ Options d'export</div>
+                
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Inclure les métadonnées</div>
+                        <div class="setting-description">Ajouter les dates de création/modification</div>
+                    </div>
+                    <div class="setting-control">
+                        <div class="toggle-switch active" id="includeMetadata" onclick="toggleExportOption('includeMetadata')"></div>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Table des matières</div>
+                        <div class="setting-description">Générer un sommaire automatique</div>
+                    </div>
+                    <div class="setting-control">
+                        <div class="toggle-switch" id="includeToc" onclick="toggleExportOption('includeToc')"></div>
+                    </div>
+                </div>
+
+                <div class="setting-item" id="styleOption">
+                    <div>
+                        <div class="setting-label">Style de document</div>
+                        <div class="setting-description">Apparence du document exporté</div>
+                    </div>
+                    <div class="setting-control">
+                        <select class="setting-select" id="documentStyle">
+                            <option value="minimal">Minimal</option>
+                            <option value="github">GitHub</option>
+                            <option value="academic">Académique</option>
+                            <option value="modern">Moderne</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Cloud Export -->
+            <div class="settings-section">
+                <div class="settings-section-title">☁️ Export vers services cloud</div>
+                
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">GitHub Gist</div>
+                        <div class="setting-description">Créer un Gist public ou privé</div>
+                    </div>
+                    <div class="setting-control">
+                        <button class="modal-btn" onclick="exportToGitHub()" id="githubExportBtn">
+                            🐙 Vers GitHub
+                        </button>
+                    </div>
+                </div>
+
+                <div class="setting-item">
+                    <div>
+                        <div class="setting-label">Pastebin</div>
+                        <div class="setting-description">Partager via un lien public</div>
+                    </div>
+                    <div class="setting-control">
+                        <button class="modal-btn" onclick="exportToPastebin()">
+                            📎 Vers Pastebin
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="modal-btn" onclick="hideAdvancedExportModal()">Annuler</button>
+                <button class="modal-btn primary" onclick="startAdvancedExport()" id="startExportBtn" disabled>
+                    🚀 Commencer l'export
+                </button>
+            </div>
+        </div>
+    </div>resetSettings()">Réinitialiser</button>
+                <button class="modal-btn primary" onclick="hideSettingsModal()">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let folders = [];
+        let notes = [];
+        let currentNoteId = null;
+        let currentFolderId = null;
+        let nextId = 1;
+        let nextFolderId = 1;
+        let viewMode = 'edit';
+
+        // File System Access API state
+        let fileSystemDirectoryHandle = null;
+        let isFileSystemSupported = 'showDirectoryPicker' in window;
+
+        // Settings state
+        let settings = {
+            theme: 'light',
+            editorFont: 'monaco',
+            fontSize: 14,
+            defaultView: 'edit',
+            autoSave: true,
+            lineNumbers: false,
+            sidebarWidth: 320,
+            dateFormat: 'short',
+            animations: true,
+            cloudSync: true,
+            versionHistory: false,
+            localSync: false,
+            localSyncPath: ''
+        };
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            renderTree();
+            updateMarkdownPreview();
+        });
+
+        // Load data from localStorage
+        function loadData() {
+            const savedData = localStorage.getItem('notesAppData');
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                folders = data.folders || [];
+                notes = data.notes || [];
+                nextId = data.nextId || 1;
+                nextFolderId = data.nextFolderId || 1;
+                settings = { ...settings, ...(data.settings || {}) };
+            }
+            loadSettings();
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            const data = {
+                folders: folders,
+                notes: notes,
+                nextId: nextId,
+                nextFolderId: nextFolderId,
+                settings: settings
+            };
+            localStorage.setItem('notesAppData', JSON.stringify(data));
+        }
+
+        // Create new folder (always at root level unless specified)
+        function showCreateFolderModal() {
+            // Reset currentFolderId to null to create at root
+            currentFolderId = null;
+            document.getElementById('createFolderModal').style.display = 'flex';
+            document.getElementById('folderNameInput').focus();
+        }
+
+        function hideCreateFolderModal() {
+            document.getElementById('createFolderModal').style.display = 'none';
+            document.getElementById('folderNameInput').value = '';
+            currentFolderId = null;
+            
+            // Reset modal title
+            document.querySelector('.modal-title').textContent = 'Créer un nouveau dossier';
+        }
+
+        function createFolder() {
+            const name = document.getElementById('folderNameInput').value.trim();
+            if (!name) return;
+
+            const newFolder = {
+                id: nextFolderId++,
+                name: name,
+                parentId: currentFolderId, // This will be null for root folders
+                expanded: true,
+                createdAt: new Date().toISOString()
+            };
+
+            folders.push(newFolder);
+            saveData();
+            renderTree();
+            hideCreateFolderModal();
+        }
+
+        // Create new note (at root level unless specified)
+        function createNewNote() {
+            const newNote = {
+                id: nextId++,
+                title: 'Nouvelle note',
+                content: '',
+                folderId: null, // Always create at root initially
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+            
+            notes.unshift(newNote);
+            saveData();
+            renderTree();
+            selectNote(newNote.id);
+        }
+
+        // Select and display a note
+        function selectNote(noteId) {
+            currentNoteId = noteId;
+            const note = notes.find(n => n.id === noteId);
+            
+            if (note) {
+                document.getElementById('emptyState').style.display = 'none';
+                document.getElementById('editorContainer').style.display = 'flex';
+                
+                document.getElementById('noteTitleInput').value = note.title;
+                document.getElementById('noteEditor').value = note.content;
+                
+                updateMarkdownPreview();
+                
+                // Update active state in sidebar
+                document.querySelectorAll('.note-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                const noteElement = document.querySelector(`[data-note-id="${noteId}"]`);
+                if (noteElement) {
+                    noteElement.classList.add('active');
+                }
+                
+                // Close sidebar on mobile after selection
+                if (window.innerWidth <= 768) {
+                    toggleSidebar();
+                }
+            }
+        }
+
+        // Update note title
+        function updateNoteTitle() {
+            if (currentNoteId) {
+                const note = notes.find(n => n.id === currentNoteId);
+                if (note) {
+                    const oldTitle = note.title;
+                    note.title = document.getElementById('noteTitleInput').value || 'Sans titre';
+                    note.updatedAt = new Date().toISOString();
+                    saveData();
+                    renderTree();
+                    
+                    // Auto-sync to local if enabled
+                    if (settings.localSync && settings.autoSave) {
+                        saveNoteToLocal(note);
+                        
+                        // If title changed, try to remove old file
+                        if (oldTitle !== note.title) {
+                            removeOldFileFromLocal(oldTitle, note);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Remove old file when title changes
+        async function removeOldFileFromLocal(oldTitle, note) {
+            try {
+                const folderHandle = await getFolderHandleForNote(note);
+                if (!folderHandle) return;
+
+                const oldFilename = getSafeFilename(oldTitle) + '.md';
+                await folderHandle.removeEntry(oldFilename);
+                console.log(`Ancien fichier supprimé: ${oldFilename}`);
+            } catch (error) {
+                // File might not exist, ignore error
+                console.log('Ancien fichier non trouvé, continuons...');
+            }
+        }
+
+        // Update note content
+        function updateNoteContent() {
+            if (currentNoteId) {
+                const note = notes.find(n => n.id === currentNoteId);
+                if (note) {
+                    note.content = document.getElementById('noteEditor').value;
+                    note.updatedAt = new Date().toISOString();
+                    saveData();
+                    renderTree();
+                    updateMarkdownPreview();
+                    
+                    // Auto-sync to local if enabled
+                    if (settings.localSync && settings.autoSave) {
+                        saveNoteToLocal(note);
+                    }
+                }
+            }
+        }
+
+        // Update markdown preview
+        function updateMarkdownPreview() {
+            const content = document.getElementById('noteEditor').value;
+            const preview = document.getElementById('markdownPreview');
+            if (preview && typeof marked !== 'undefined') {
+                preview.innerHTML = marked.parse(content || '*Aucun contenu à afficher*');
+            }
+        }
+
+        // View mode management
+        function setViewMode(mode) {
+            viewMode = mode;
+            
+            // Update button states
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(mode + 'Btn').classList.add('active');
+            
+            const editorPane = document.getElementById('editorPane');
+            const previewPane = document.getElementById('previewPane');
+            
+            switch(mode) {
+                case 'edit':
+                    editorPane.style.display = 'flex';
+                    editorPane.classList.add('full-width');
+                    previewPane.style.display = 'none';
+                    break;
+                case 'preview':
+                    editorPane.style.display = 'none';
+                    previewPane.style.display = 'flex';
+                    previewPane.style.flex = '1';
+                    updateMarkdownPreview();
+                    break;
+                case 'split':
+                    editorPane.style.display = 'flex';
+                    editorPane.classList.remove('full-width');
+                    previewPane.style.display = 'flex';
+                    previewPane.style.flex = '1';
+                    updateMarkdownPreview();
+                    break;
+            }
+        }
+
+        // Save note (for manual save button)
+        function saveNote() {
+            if (currentNoteId) {
+                updateNoteTitle();
+                updateNoteContent();
+                // Visual feedback
+                const saveBtn = document.querySelector('.action-btn');
+                const originalText = saveBtn.innerHTML;
+                saveBtn.innerHTML = '✅ Sauvegardé';
+                setTimeout(() => {
+                    saveBtn.innerHTML = originalText;
+                }, 1000);
+            }
+        }
+
+        // Delete current note
+        function deleteCurrentNote() {
+            if (currentNoteId && confirm('Êtes-vous sûr de vouloir supprimer cette note ?')) {
+                notes = notes.filter(n => n.id !== currentNoteId);
+                saveData();
+                renderTree();
+                
+                // Show empty state or select another note
+                if (notes.length === 0) {
+                    currentNoteId = null;
+                    document.getElementById('emptyState').style.display = 'flex';
+                    document.getElementById('editorContainer').style.display = 'none';
+                } else {
+                    selectNote(notes[0].id);
+                }
+            }
+        }
+
+        // Toggle folder
+        function toggleFolder(folderId) {
+            const folder = folders.find(f => f.id === folderId);
+            if (folder) {
+                folder.expanded = !folder.expanded;
+                saveData();
+                renderTree();
+            }
+        }
+
+        // Select folder (for visual feedback only, don't set as current parent)
+        function selectFolder(folderId) {
+            // Visual feedback - highlight selected folder
+            document.querySelectorAll('.folder-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            const folderElement = document.querySelector(`[data-folder-id="${folderId}"]`);
+            if (folderElement) {
+                folderElement.classList.add('selected');
+            }
+            
+            // Don't set currentFolderId here - only set it when explicitly creating in a folder
+        }
+
+        // Delete folder
+        function deleteFolder(folderId) {
+            console.log('Tentative de suppression du dossier:', folderId); // Debug
+            
+            if (!folderId) {
+                console.error('ID de dossier invalide');
+                return;
+            }
+            
+            const folder = folders.find(f => f.id === folderId);
+            if (!folder) {
+                console.error('Dossier non trouvé');
+                return;
+            }
+            
+            if (confirm(`Êtes-vous sûr de vouloir supprimer le dossier "${folder.name}" et tout son contenu ?`)) {
+                // Supprimer récursivement tous les sous-dossiers et notes
+                function deleteFolderRecursive(id) {
+                    // Supprimer les notes dans ce dossier
+                    const notesToDelete = notes.filter(n => n.folderId === id);
+                    console.log('Notes à supprimer:', notesToDelete.length);
+                    notes = notes.filter(n => n.folderId !== id);
+                    
+                    // Trouver et supprimer les sous-dossiers
+                    const subfolders = folders.filter(f => f.parentId === id);
+                    console.log('Sous-dossiers à supprimer:', subfolders.length);
+                    subfolders.forEach(subfolder => deleteFolderRecursive(subfolder.id));
+                    
+                    // Supprimer le dossier lui-même
+                    folders = folders.filter(f => f.id !== id);
+                }
+                
+                deleteFolderRecursive(folderId);
+                saveData();
+                renderTree();
+                
+                // Si on était dans ce dossier, remettre à la racine
+                if (currentFolderId === folderId) {
+                    currentFolderId = null;
+                }
+                
+                // Si la note actuelle était dans ce dossier, retourner à l'état vide
+                if (currentNoteId) {
+                    const currentNote = notes.find(n => n.id === currentNoteId);
+                    if (!currentNote) {
+                        currentNoteId = null;
+                        document.getElementById('emptyState').style.display = 'flex';
+                        document.getElementById('editorContainer').style.display = 'none';
+                    }
+                }
+                
+                console.log('Dossier supprimé avec succès');
+            }
+        }
+
+        // Build tree structure
+        function buildTree() {
+            const tree = [];
+            
+            // Construire l'arbre des dossiers
+            function buildFolderTree(parentId = null) {
+                return folders
+                    .filter(f => f.parentId === parentId)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map(folder => ({
+                        ...folder,
+                        type: 'folder',
+                        children: buildFolderTree(folder.id),
+                        notes: notes
+                            .filter(n => n.folderId === folder.id)
+                            .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+                    }));
+            }
+            
+            // Ajouter les dossiers racine
+            tree.push(...buildFolderTree());
+            
+            // Ajouter les notes sans dossier
+            const rootNotes = notes
+                .filter(n => !n.folderId)
+                .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            
+            tree.push(...rootNotes.map(note => ({ ...note, type: 'note' })));
+            
+            return tree;
+        }
+
+        // Render tree
+        function renderTree() {
+            const tree = buildTree();
+            const treeContainer = document.getElementById('notesTree');
+            treeContainer.innerHTML = '';
+            
+            function renderTreeItem(item, level = 0) {
+                if (item.type === 'folder') {
+                    const folderDiv = document.createElement('div');
+                    folderDiv.className = 'tree-item';
+                    
+                    const folderHeader = document.createElement('div');
+                    folderHeader.className = 'folder-item';
+                    folderHeader.style.paddingLeft = (level * 16) + 'px';
+                    
+                    const hasChildren = item.children.length > 0 || item.notes.length > 0;
+                    
+                    folderHeader.innerHTML = `
+                        <span class="folder-toggle ${item.expanded ? 'expanded' : ''}" onclick="toggleFolder(${item.id})">${hasChildren ? '▶' : ''}</span>
+                        <span class="folder-icon">📁</span>
+                        <span class="folder-name" onclick="selectFolder(${item.id})">${item.name}</span>
+                        <div class="folder-actions">
+                            <button class="folder-action-btn" onclick="event.stopPropagation(); createNoteInFolder(${item.id})" title="Nouvelle note">📝</button>
+                            <button class="folder-action-btn" onclick="event.stopPropagation(); createSubfolderModal(${item.id})" title="Nouveau sous-dossier">📁</button>
+                            <button class="folder-action-btn" onclick="event.stopPropagation(); deleteFolder(${item.id})" title="Supprimer">🗑️</button>
+                        </div>
+                    `;
+                    
+                    folderHeader.setAttribute('data-folder-id', item.id);
+                    
+                    folderDiv.appendChild(folderHeader);
+                    
+                    // Children container
+                    const childrenDiv = document.createElement('div');
+                    childrenDiv.className = 'folder-children';
+                    if (!item.expanded) {
+                        childrenDiv.classList.add('collapsed');
+                        childrenDiv.style.maxHeight = '0';
+                    } else {
+                        childrenDiv.style.maxHeight = 'none';
+                    }
+                    
+                    // Render subfolders
+                    item.children.forEach(child => {
+                        childrenDiv.appendChild(renderTreeItem(child, level + 1));
+                    });
+                    
+                    // Render notes in folder
+                    item.notes.forEach(note => {
+                        childrenDiv.appendChild(renderTreeItem({...note, type: 'note'}, level + 1));
+                    });
+                    
+                    folderDiv.appendChild(childrenDiv);
+                    return folderDiv;
+                    
+                } else {
+                    // Render note
+                    const noteDiv = document.createElement('div');
+                    noteDiv.className = 'note-item';
+                    noteDiv.style.paddingLeft = (level * 16) + 'px';
+                    noteDiv.setAttribute('data-note-id', item.id);
+                    noteDiv.onclick = () => selectNote(item.id);
+                    
+                    if (currentNoteId === item.id) {
+                        noteDiv.classList.add('active');
+                    }
+                    
+                    const preview = item.content.length > 50 ? 
+                        item.content.substring(0, 50) + '...' : 
+                        item.content || 'Aucun contenu';
+                    
+                    const date = new Date(item.updatedAt).toLocaleDateString('fr-FR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                    });
+                    
+                    noteDiv.innerHTML = `
+                        <span class="note-icon">📄</span>
+                        <div class="note-content">
+                            <div class="note-title">${item.title}</div>
+                            <div class="note-preview">${preview}</div>
+                            <div class="note-date">${date}</div>
+                        </div>
+                    `;
+                    
+                    return noteDiv;
+                }
+            }
+            
+            tree.forEach(item => {
+                treeContainer.appendChild(renderTreeItem(item));
+            });
+        }
+
+        // Create note in specific folder
+        function createNoteInFolder(folderId) {
+            const newNote = {
+                id: nextId++,
+                title: 'Nouvelle note',
+                content: '',
+                folderId: folderId,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+            
+            notes.unshift(newNote);
+            saveData();
+            renderTree();
+            selectNote(newNote.id);
+            
+            // Auto-sync to local if enabled
+            if (settings.localSync && settings.autoSave) {
+                saveNoteToLocal(newNote);
+            }
+        }
+
+        // Create subfolder with modal
+        function createSubfolderModal(parentId) {
+            currentFolderId = parentId; // Set the parent for subfolder creation
+            document.getElementById('createFolderModal').style.display = 'flex';
+            document.getElementById('folderNameInput').focus();
+            
+            // Update modal title to indicate it's a subfolder
+            document.querySelector('.modal-title').textContent = 'Créer un nouveau sous-dossier';
+        }
+
+        // Create subfolder (legacy function, kept for compatibility)
+        function createSubfolder(parentId) {
+            const name = prompt('Nom du sous-dossier:');
+            if (!name) return;
+
+            const newFolder = {
+                id: nextFolderId++,
+                name: name,
+                parentId: parentId,
+                expanded: true,
+                createdAt: new Date().toISOString()
+            };
+
+            folders.push(newFolder);
+            saveData();
+            renderTree();
+        }
+
+        // Search notes
+        function searchNotes(query) {
+            if (!query.trim()) {
+                // Show all items
+                document.querySelectorAll('.tree-item, .note-item').forEach(item => {
+                    item.style.display = '';
+                });
+                return;
+            }
+
+            const searchQuery = query.toLowerCase();
+            
+            // Hide all items first
+            document.querySelectorAll('.tree-item, .note-item').forEach(item => {
+                item.style.display = 'none';
+            });
+            
+            // Show matching notes and their parent folders
+            notes.forEach(note => {
+                const title = note.title.toLowerCase();
+                const content = note.content.toLowerCase();
+                
+                if (title.includes(searchQuery) || content.includes(searchQuery)) {
+                    const noteElement = document.querySelector(`[data-note-id="${note.id}"]`);
+                    if (noteElement) {
+                        noteElement.style.display = '';
+                        
+                        // Show parent folders
+                        let currentFolder = folders.find(f => f.id === note.folderId);
+                        while (currentFolder) {
+                            const folderElement = document.querySelector(`[data-folder-id="${currentFolder.id}"]`);
+                            if (folderElement) {
+                                folderElement.style.display = '';
+                            }
+                            currentFolder = folders.find(f => f.id === currentFolder.parentId);
+                        }
+                    }
+                }
+            });
+            
+            // Show matching folders
+            folders.forEach(folder => {
+                if (folder.name.toLowerCase().includes(searchQuery)) {
+                    const folderElement = document.querySelector(`[data-folder-id="${folder.id}"]`);
+                    if (folderElement) {
+                        folderElement.style.display = '';
+                    }
+                }
+            });
+        }
+
+        // Toggle sidebar for mobile
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+        }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(e) {
+            const sidebar = document.getElementById('sidebar');
+            const mobileToggle = document.querySelector('.mobile-toggle');
+            
+            if (window.innerWidth <= 768 && 
+                !sidebar.contains(e.target) && 
+                !mobileToggle.contains(e.target) && 
+                sidebar.classList.contains('open')) {
+                sidebar.classList.remove('open');
+            }
+        });
+
+        // Handle modal enter key
+        document.getElementById('folderNameInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                createFolder();
+            }
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl/Cmd + N for new note
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                createNewNote();
+            }
+            
+            // Ctrl/Cmd + S for save
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveNote();
+            }
+            
+            // Ctrl/Cmd + Shift + N for new folder
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'N') {
+                e.preventDefault();
+                showCreateFolderModal();
+            }
+
+            // Escape to close modal
+            if (e.key === 'Escape') {
+                hideCreateFolderModal();
+            }
+        });
+
+        // Export/Import functionality
+        function exportData() {
+            const data = {
+                folders: folders,
+                notes: notes,
+                nextId: nextId,
+                nextFolderId: nextFolderId,
+                exportDate: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `notesapp-export-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        
+                        if (confirm('Voulez-vous remplacer toutes vos données actuelles par celles importées ?')) {
+                            folders = data.folders || [];
+                            notes = data.notes || [];
+                            nextId = data.nextId || 1;
+                            nextFolderId = data.nextFolderId || 1;
+                            
+                            saveData();
+                            renderTree();
+                            
+                            // Reset current selection
+                            currentNoteId = null;
+                            currentFolderId = null;
+                            document.getElementById('emptyState').style.display = 'flex';
+                            document.getElementById('editorContainer').style.display = 'none';
+                            
+                            alert('Données importées avec succès !');
+                        }
+                    } catch (error) {
+                        alert('Erreur lors de l\'importation : fichier invalide');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // Import Markdown files
+        function importMarkdownFiles() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.md,.markdown';
+            input.multiple = true;
+            input.onchange = function(e) {
+                const files = Array.from(e.target.files);
+                if (files.length === 0) return;
+                
+                let filesProcessed = 0;
+                const totalFiles = files.length;
+                
+                files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const content = e.target.result;
+                        const fileName = file.name.replace(/\.(md|markdown)$/i, '');
+                        
+                        // Créer la note
+                        const newNote = {
+                            id: nextId++,
+                            title: fileName,
+                            content: content,
+                            folderId: null, // Importer à la racine
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString()
+                        };
+                        
+                        notes.unshift(newNote);
+                        filesProcessed++;
+                        
+                        // Quand tous les fichiers sont traités
+                        if (filesProcessed === totalFiles) {
+                            saveData();
+                            renderTree();
+                            alert(`${totalFiles} fichier(s) Markdown importé(s) avec succès !`);
+                        }
+                    };
+                    
+                    reader.onerror = function() {
+                        console.error('Erreur lors de la lecture du fichier:', file.name);
+                        filesProcessed++;
+                        if (filesProcessed === totalFiles) {
+                            saveData();
+                            renderTree();
+                            alert(`Import terminé. Certains fichiers n'ont peut-être pas pu être lus.`);
+                        }
+                    };
+                    
+                    reader.readAsText(file, 'UTF-8');
+                });
+            };
+            input.click();
+        }
+
+        // Import folder structure with Markdown files
+        function importMarkdownFolder() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.webkitdirectory = true;
+            input.multiple = true;
+            
+            input.onchange = function(e) {
+                const files = Array.from(e.target.files);
+                if (files.length === 0) return;
+                
+                // Filtrer seulement les fichiers Markdown
+                const markdownFiles = files.filter(file => 
+                    file.name.toLowerCase().endsWith('.md') || 
+                    file.name.toLowerCase().endsWith('.markdown')
+                );
+                
+                if (markdownFiles.length === 0) {
+                    alert('Aucun fichier Markdown trouvé dans ce dossier.');
+                    return;
+                }
+                
+                // Créer un mapping des chemins vers les IDs de dossiers
+                const folderPathMap = new Map();
+                folderPathMap.set('', null); // Racine
+                
+                // Analyser la structure des dossiers
+                const folderPaths = new Set();
+                markdownFiles.forEach(file => {
+                    const pathParts = file.webkitRelativePath.split('/');
+                    pathParts.pop(); // Enlever le nom du fichier
+                    
+                    // Ajouter tous les chemins de dossiers parent
+                    for (let i = 1; i <= pathParts.length; i++) {
+                        const folderPath = pathParts.slice(0, i).join('/');
+                        folderPaths.add(folderPath);
+                    }
+                });
+                
+                // Créer les dossiers dans l'ordre (parents avant enfants)
+                const sortedPaths = Array.from(folderPaths).sort();
+                sortedPaths.forEach(folderPath => {
+                    if (folderPath === '') return; // Skip racine
+                    
+                    const pathParts = folderPath.split('/');
+                    const folderName = pathParts[pathParts.length - 1];
+                    const parentPath = pathParts.slice(0, -1).join('/');
+                    const parentId = folderPathMap.get(parentPath);
+                    
+                    // Vérifier si le dossier existe déjà
+                    const existingFolder = folders.find(f => 
+                        f.name === folderName && f.parentId === parentId
+                    );
+                    
+                    if (!existingFolder) {
+                        const newFolder = {
+                            id: nextFolderId++,
+                            name: folderName,
+                            parentId: parentId,
+                            expanded: true,
+                            createdAt: new Date().toISOString()
+                        };
+                        
+                        folders.push(newFolder);
+                        folderPathMap.set(folderPath, newFolder.id);
+                    } else {
+                        folderPathMap.set(folderPath, existingFolder.id);
+                    }
+                });
+                
+                // Importer les fichiers Markdown
+                let filesProcessed = 0;
+                const totalFiles = markdownFiles.length;
+                
+                markdownFiles.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const content = e.target.result;
+                        const fileName = file.name.replace(/\.(md|markdown)$/i, '');
+                        
+                        // Déterminer le dossier parent
+                        const pathParts = file.webkitRelativePath.split('/');
+                        pathParts.pop(); // Enlever le nom du fichier
+                        const folderPath = pathParts.join('/');
+                        const folderId = folderPathMap.get(folderPath);
+                        
+                        // Créer la note
+                        const newNote = {
+                            id: nextId++,
+                            title: fileName,
+                            content: content,
+                            folderId: folderId,
+                            createdAt: new Date().toISOString(),
+                            updatedAt: new Date().toISOString()
+                        };
+                        
+                        notes.unshift(newNote);
+                        filesProcessed++;
+                        
+                        // Quand tous les fichiers sont traités
+                        if (filesProcessed === totalFiles) {
+                            saveData();
+                            renderTree();
+                            alert(`Structure importée avec succès !\n${folders.length} dossier(s) et ${totalFiles} fichier(s) Markdown importé(s).`);
+                        }
+                    };
+                    
+                    reader.onerror = function() {
+                        console.error('Erreur lors de la lecture du fichier:', file.webkitRelativePath);
+                        filesProcessed++;
+                        if (filesProcessed === totalFiles) {
+                            saveData();
+                            renderTree();
+                            alert(`Import terminé. Certains fichiers n'ont peut-être pas pu être lus.`);
+                        }
+                    };
+                    
+                    reader.readAsText(file, 'UTF-8');
+                });
+            };
+            
+            input.click();
+        }
+
+        // Add export/import buttons to the sidebar header
+        function addExportImportButtons() {
+            const sidebarHeader = document.querySelector('.sidebar-header');
+            const exportImportDiv = document.createElement('div');
+            exportImportDiv.style.display = 'flex';
+            exportImportDiv.style.flexDirection = 'column';
+            exportImportDiv.style.gap = '8px';
+            exportImportDiv.style.marginTop = '10px';
+            
+            exportImportDiv.innerHTML = `
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="exportData()" style="flex: 1; padding: 6px 8px; background: #805ad5; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">💾 Exporter</button>
+                    <button onclick="importData()" style="flex: 1; padding: 6px 8px; background: #38a169; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">📁 Importer</button>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="importMarkdownFiles()" style="flex: 1; padding: 6px 8px; background: #3182ce; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">📄 MD Files</button>
+                    <button onclick="importMarkdownFolder()" style="flex: 1; padding: 6px 8px; background: #d69e2e; color: white; border: none; border-radius: 4px; font-size: 11px; cursor: pointer;">📂 MD Folder</button>
+                </div>
+                <button onclick="showAdvancedExportModal()" style="width: 100%; padding: 6px 8px; background: #e53e3e; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">🚀 Export Avancé</button>
+            `;
+            
+            sidebarHeader.appendChild(exportImportDiv);
+        }
+
+        // Initialize export/import buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            addExportImportButtons();
+        });
+
+        // Settings functions
+        function showSettingsModal() {
+            document.getElementById('settingsModal').style.display = 'flex';
+            updateSettingsUI();
+        }
+
+        function hideSettingsModal() {
+            document.getElementById('settingsModal').style.display = 'none';
+            saveData();
+        }
+
+        function updateSettingsUI() {
+            document.getElementById('themeSelect').value = settings.theme;
+            document.getElementById('fontSelect').value = settings.editorFont;
+            document.getElementById('fontSizeSlider').value = settings.fontSize;
+            document.getElementById('fontSizeLabel').textContent = settings.fontSize + 'px';
+            document.getElementById('defaultViewSelect').value = settings.defaultView;
+            document.getElementById('sidebarWidthSlider').value = settings.sidebarWidth;
+            document.getElementById('sidebarWidthLabel').textContent = settings.sidebarWidth + 'px';
+            document.getElementById('dateFormatSelect').value = settings.dateFormat;
+            
+            // Update toggles
+            document.getElementById('autoSaveToggle').classList.toggle('active', settings.autoSave);
+            document.getElementById('lineNumbersToggle').classList.toggle('active', settings.lineNumbers);
+            document.getElementById('animationsToggle').classList.toggle('active', settings.animations);
+            document.getElementById('cloudSyncToggle').classList.toggle('active', settings.cloudSync);
+            document.getElementById('versionHistoryToggle').classList.toggle('active', settings.versionHistory);
+            document.getElementById('localSyncToggle').classList.toggle('active', settings.localSync);
+            
+            // Show/hide file system access elements
+            if (!isFileSystemSupported) {
+                document.getElementById('fsaNotSupported').style.display = 'block';
+                document.getElementById('localSyncToggle').style.display = 'none';
+            }
+            
+            // Show/hide local sync settings
+            const localSyncSettings = document.getElementById('localSyncSettings');
+            const syncActions = document.getElementById('syncActions');
+            if (settings.localSync && isFileSystemSupported) {
+                localSyncSettings.style.display = 'block';
+                syncActions.style.display = 'block';
+                updateSyncPathDisplay();
+            } else {
+                localSyncSettings.style.display = 'none';
+                syncActions.style.display = 'none';
+            }
+        }
+
+        function updateSyncPathDisplay() {
+            const display = document.getElementById('syncPathDisplay');
+            if (settings.localSyncPath) {
+                display.textContent = `Synchronisé avec: ${settings.localSyncPath}`;
+                display.style.color = '#38a169';
+            } else {
+                display.textContent = 'Aucun dossier sélectionné';
+                display.style.color = '#e53e3e';
+            }
+        }
+
+        function loadSettings() {
+            // Apply theme
+            changeTheme(settings.theme);
+            // Apply editor font
+            changeEditorFont(settings.editorFont);
+            // Apply font size
+            changeFontSize(settings.fontSize);
+            // Apply sidebar width
+            changeSidebarWidth(settings.sidebarWidth);
+            // Apply animations
+            if (!settings.animations) {
+                document.body.style.setProperty('--transition-duration', '0s');
+            }
+        }
+
+        function changeTheme(theme) {
+            settings.theme = theme;
+            const body = document.body;
+            
+            // Remove existing theme classes
+            body.classList.remove('theme-light', 'theme-dark', 'theme-auto');
+            
+            if (theme === 'dark') {
+                body.classList.add('theme-dark');
+                body.style.background = '#1a202c';
+                body.style.color = '#e2e8f0';
+                document.querySelector('.sidebar').style.background = '#2d3748';
+                document.querySelector('.main-content').style.background = '#2d3748';
+            } else if (theme === 'auto') {
+                const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                changeTheme(isDark ? 'dark' : 'light');
+                return;
+            } else {
+                body.classList.add('theme-light');
+                body.style.background = '#f8f9fa';
+                body.style.color = '#2d3748';
+                document.querySelector('.sidebar').style.background = 'white';
+                document.querySelector('.main-content').style.background = 'white';
+            }
+            saveData();
+        }
+
+        function changeEditorFont(font) {
+            settings.editorFont = font;
+            const editor = document.getElementById('noteEditor');
+            
+            const fontMap = {
+                'monaco': '"Monaco", monospace',
+                'jetbrains': '"JetBrains Mono", monospace',
+                'fira': '"Fira Code", monospace',
+                'consolas': '"Consolas", monospace',
+                'system': 'system-ui, sans-serif'
+            };
+            
+            if (editor) {
+                editor.style.fontFamily = fontMap[font] || fontMap.monaco;
+            }
+            saveData();
+        }
+
+        function changeFontSize(size) {
+            settings.fontSize = parseInt(size);
+            const editor = document.getElementById('noteEditor');
+            
+            if (editor) {
+                editor.style.fontSize = size + 'px';
+            }
+            
+            document.getElementById('fontSizeLabel').textContent = size + 'px';
+            saveData();
+        }
+
+        function changeDefaultView(view) {
+            settings.defaultView = view;
+            viewMode = view;
+            saveData();
+        }
+
+        function changeSidebarWidth(width) {
+            settings.sidebarWidth = parseInt(width);
+            const sidebar = document.querySelector('.sidebar');
+            
+            if (sidebar) {
+                sidebar.style.width = width + 'px';
+            }
+            
+            document.getElementById('sidebarWidthLabel').textContent = width + 'px';
+            saveData();
+        }
+
+        function changeDateFormat(format) {
+            settings.dateFormat = format;
+            renderTree(); // Re-render to apply new date format
+            saveData();
+        }
+
+        function toggleAutoSave() {
+            settings.autoSave = !settings.autoSave;
+            document.getElementById('autoSaveToggle').classList.toggle('active', settings.autoSave);
+            saveData();
+        }
+
+        function toggleLineNumbers() {
+            settings.lineNumbers = !settings.lineNumbers;
+            document.getElementById('lineNumbersToggle').classList.toggle('active', settings.lineNumbers);
+            // TODO: Implement line numbers in editor
+            saveData();
+        }
+
+        function toggleAnimations() {
+            settings.animations = !settings.animations;
+            document.getElementById('animationsToggle').classList.toggle('active', settings.animations);
+            
+            const duration = settings.animations ? '0.2s' : '0s';
+            document.documentElement.style.setProperty('--transition-duration', duration);
+            saveData();
+        }
+
+        function toggleCloudSync() {
+            settings.cloudSync = !settings.cloudSync;
+            document.getElementById('cloudSyncToggle').classList.toggle('active', settings.cloudSync);
+            saveData();
+        }
+
+        function toggleVersionHistory() {
+            settings.versionHistory = !settings.versionHistory;
+            document.getElementById('versionHistoryToggle').classList.toggle('active', settings.versionHistory);
+            saveData();
+        }
+
+        function resetSettings() {
+            if (confirm('Êtes-vous sûr de vouloir réinitialiser tous les paramètres ?')) {
+                settings = {
+                    theme: 'light',
+                    editorFont: 'monaco',
+                    fontSize: 14,
+                    defaultView: 'edit',
+                    autoSave: true,
+                    lineNumbers: false,
+                    sidebarWidth: 320,
+                    dateFormat: 'short',
+                    animations: true,
+                    cloudSync: true,
+                    versionHistory: false,
+                    localSync: false,
+                    localSyncPath: ''
+                };
+                fileSystemDirectoryHandle = null;
+                loadSettings();
+                updateSettingsUI();
+                saveData();
+            }
+        }
+
+        // File System Access API functions
+        async function selectLocalSyncFolder() {
+            if (!isFileSystemSupported) {
+                alert('Votre navigateur ne supporte pas cette fonctionnalité. Utilisez Chrome ou Edge.');
+                return;
+            }
+
+            try {
+                fileSystemDirectoryHandle = await window.showDirectoryPicker({
+                    id: 'notesapp-sync',
+                    mode: 'readwrite',
+                    startIn: 'documents'
+                });
+
+                settings.localSyncPath = fileSystemDirectoryHandle.name;
+                updateSyncPathDisplay();
+                saveData();
+
+                // Proposer une synchronisation immédiate
+                if (confirm('Dossier sélectionné ! Voulez-vous synchroniser toutes vos notes maintenant ?')) {
+                    await exportAllToLocal();
+                }
+            } catch (error) {
+                console.error('Erreur lors de la sélection du dossier:', error);
+                if (error.name !== 'AbortError') {
+                    alert('Erreur lors de la sélection du dossier: ' + error.message);
+                }
+            }
+        }
+
+        function toggleLocalSync() {
+            if (!isFileSystemSupported) {
+                alert('Votre navigateur ne supporte pas cette fonctionnalité. Utilisez Chrome ou Edge.');
+                return;
+            }
+
+            settings.localSync = !settings.localSync;
+            document.getElementById('localSyncToggle').classList.toggle('active', settings.localSync);
+            
+            const localSyncSettings = document.getElementById('localSyncSettings');
+            const syncActions = document.getElementById('syncActions');
+            
+            if (settings.localSync) {
+                localSyncSettings.style.display = 'block';
+                syncActions.style.display = 'block';
+                if (!fileSystemDirectoryHandle) {
+                    selectLocalSyncFolder();
+                }
+            } else {
+                localSyncSettings.style.display = 'none';
+                syncActions.style.display = 'none';
+            }
+            
+            saveData();
+        }
+
+        // Get safe filename from title
+        function getSafeFilename(title) {
+            return title
+                .replace(/[<>:"/\\|?*]/g, '-')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .substring(0, 100) || 'Untitled';
+        }
+
+        // Create folder structure in file system
+        async function createFolderStructure(parentHandle, folderId) {
+            const folder = folders.find(f => f.id === folderId);
+            if (!folder) return parentHandle;
+
+            try {
+                const safeName = getSafeFilename(folder.name);
+                const folderHandle = await parentHandle.getDirectoryHandle(safeName, { create: true });
+                return folderHandle;
+            } catch (error) {
+                console.error('Erreur lors de la création du dossier:', error);
+                return parentHandle;
+            }
+        }
+
+        // Get folder path for a note
+        async function getFolderHandleForNote(note) {
+            if (!fileSystemDirectoryHandle) return null;
+
+            let currentHandle = fileSystemDirectoryHandle;
+            
+            if (note.folderId) {
+                // Build folder path
+                const folderPath = [];
+                let currentFolderId = note.folderId;
+                
+                while (currentFolderId) {
+                    const folder = folders.find(f => f.id === currentFolderId);
+                    if (folder) {
+                        folderPath.unshift(folder);
+                        currentFolderId = folder.parentId;
+                    } else {
+                        break;
+                    }
+                }
+                
+                // Create folder structure
+                for (const folder of folderPath) {
+                    currentHandle = await createFolderStructure(currentHandle, folder.id);
+                }
+            }
+            
+            return currentHandle;
+        }
+
+        // Save single note to file system
+        async function saveNoteToLocal(note) {
+            if (!settings.localSync || !fileSystemDirectoryHandle) return;
+
+            try {
+                const folderHandle = await getFolderHandleForNote(note);
+                if (!folderHandle) return;
+
+                const filename = getSafeFilename(note.title) + '.md';
+                const fileHandle = await folderHandle.getFileHandle(filename, { create: true });
+                const writable = await fileHandle.createWritable();
+                
+                // Add frontmatter with metadata
+                const frontmatter = `---
+title: ${note.title}
+created: ${note.createdAt}
+updated: ${note.updatedAt}
+id: ${note.id}
+---
+
+`;
+                
+                await writable.write(frontmatter + note.content);
+                await writable.close();
+                
+                console.log(`Note sauvegardée: ${filename}`);
+            } catch (error) {
+                console.error('Erreur lors de la sauvegarde de la note:', error);
+            }
+        }
+
+        // Export all notes to local file system
+        async function exportAllToLocal() {
+            if (!settings.localSync || !fileSystemDirectoryHandle) {
+                alert('Veuillez d\'abord activer la synchronisation locale et sélectionner un dossier.');
+                return;
+            }
+
+            const progressInfo = document.createElement('div');
+            progressInfo.style.position = 'fixed';
+            progressInfo.style.top = '20px';
+            progressInfo.style.right = '20px';
+            progressInfo.style.background = '#4299e1';
+            progressInfo.style.color = 'white';
+            progressInfo.style.padding = '10px 15px';
+            progressInfo.style.borderRadius = '8px';
+            progressInfo.style.zIndex = '9999';
+            progressInfo.textContent = 'Synchronisation en cours...';
+            document.body.appendChild(progressInfo);
+
+            try {
+                let saved = 0;
+                for (const note of notes) {
+                    await saveNoteToLocal(note);
+                    saved++;
+                    progressInfo.textContent = `Synchronisation: ${saved}/${notes.length}`;
+                }
+                
+                progressInfo.textContent = `✅ ${saved} notes synchronisées !`;
+                progressInfo.style.background = '#38a169';
+                
+                setTimeout(() => {
+                    document.body.removeChild(progressInfo);
+                }, 3000);
+                
+            } catch (error) {
+                console.error('Erreur lors de l\'export:', error);
+                progressInfo.textContent = '❌ Erreur lors de la synchronisation';
+                progressInfo.style.background = '#e53e3e';
+                
+                setTimeout(() => {
+                    document.body.removeChild(progressInfo);
+                }, 3000);
+            }
+        }
+
+        // Advanced Export Functions
+        let selectedExportFormat = null;
+        let exportOptions = {
+            includeMetadata: true,
+            includeToc: false,
+            documentStyle: 'minimal'
+        };
+
+        function showAdvancedExportModal() {
+            document.getElementById('advancedExportModal').style.display = 'flex';
+            populateFolderSelect();
+            updateExportOptions();
+        }
+
+        function hideAdvancedExportModal() {
+            document.getElementById('advancedExportModal').style.display = 'none';
+            selectedExportFormat = null;
+            document.querySelectorAll('.format-option').forEach(el => el.classList.remove('selected'));
+            document.getElementById('startExportBtn').disabled = true;
+        }
+
+        function populateFolderSelect() {
+            const select = document.getElementById('folderSelect');
+            select.innerHTML = '<option value="">Choisir un dossier...</option>';
+            
+            folders.forEach(folder => {
+                const option = document.createElement('option');
+                option.value = folder.id;
+                option.textContent = folder.name;
+                select.appendChild(option);
+            });
+        }
+
+        function updateExportOptions() {
+            const scope = document.querySelector('input[name="exportScope"]:checked').value;
+            const folderSelect = document.getElementById('folderSelect');
+            const currentNoteAvailable = currentNoteId !== null;
+            
+            // Enable/disable folder select
+            folderSelect.disabled = scope !== 'folder';
+            
+            // Disable current note option if no note selected
+            const currentRadio = document.querySelector('input[name="exportScope"][value="current"]');
+            if (!currentNoteAvailable) {
+                currentRadio.disabled = true;
+                if (scope === 'current') {
+                    document.querySelector('input[name="exportScope"][value="all"]').checked = true;
+                }
+            }
+        }
+
+        function selectExportFormat(format) {
+            selectedExportFormat = format;
+            
+            // Update UI
+            document.querySelectorAll('.format-option').forEach(el => el.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+            
+            // Enable export button
+            document.getElementById('startExportBtn').disabled = false;
+            
+            // Show/hide style options based on format
+            const styleOption = document.getElementById('styleOption');
+            if (['pdf', 'html', 'docx'].includes(format)) {
+                styleOption.style.display = 'flex';
+            } else {
+                styleOption.style.display = 'none';
+            }
+        }
+
+        function toggleExportOption(option) {
+            exportOptions[option] = !exportOptions[option];
+            document.getElementById(option).classList.toggle('active', exportOptions[option]);
+        }
+
+        function showProgress(text, detail = '') {
+            const overlay = document.createElement('div');
+            overlay.className = 'progress-overlay';
+            overlay.id = 'progressOverlay';
+            
+            overlay.innerHTML = `
+                <div class="progress-modal">
+                    <div class="progress-spinner"></div>
+                    <div class="progress-text">${text}</div>
+                    <div class="progress-detail">${detail}</div>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+        }
+
+        function updateProgress(text, detail = '') {
+            const overlay = document.getElementById('progressOverlay');
+            if (overlay) {
+                overlay.querySelector('.progress-text').textContent = text;
+                overlay.querySelector('.progress-detail').textContent = detail;
+            }
+        }
+
+        function hideProgress() {
+            const overlay = document.getElementById('progressOverlay');
+            if (overlay) {
+                document.body.removeChild(overlay);
+            }
+        }
+
+        // Get notes based on selected scope
+        function getNotesToExport() {
+            const scope = document.querySelector('input[name="exportScope"]:checked').value;
+            
+            switch (scope) {
+                case 'current':
+                    const currentNote = notes.find(n => n.id === currentNoteId);
+                    return currentNote ? [currentNote] : [];
+                
+                case 'folder':
+                    const folderId = parseInt(document.getElementById('folderSelect').value);
+                    if (!folderId) return [];
+                    return notes.filter(n => n.folderId === folderId);
+                
+                case 'all':
+                default:
+                    return [...notes];
+            }
+        }
+
+        // Generate HTML with styles
+        function generateStyledHTML(notesToExport, style = 'minimal') {
+            const styles = {
+                minimal: `
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+                           max-width: 800px; margin: 0 auto; padding: 40px 20px; 
+                           line-height: 1.6; color: #333; }
+                    h1 { border-bottom: 2px solid #eee; padding-bottom: 10px; }
+                    h2 { color: #2c3e50; margin-top: 30px; }
+                    code { background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }
+                    pre { background: #f8f8f8; padding: 16px; border-radius: 5px; overflow-x: auto; }
+                    blockquote { border-left: 4px solid #ddd; margin: 0; padding-left: 16px; color: #666; }
+                `,
+                github: `
+                    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+                           max-width: 900px; margin: 0 auto; padding: 45px; 
+                           line-height: 1.7; color: #24292f; background: #fff; }
+                    h1, h2, h3 { margin-top: 24px; margin-bottom: 16px; font-weight: 600; }
+                    h1 { padding-bottom: 10px; border-bottom: 1px solid #d1d9e0; }
+                    code { background: rgba(175, 184, 193, 0.2); padding: 2px 4px; border-radius: 3px; font-family: 'SF Mono', Monaco, monospace; }
+                    pre { background: #f6f8fa; padding: 16px; border-radius: 6px; overflow: auto; }
+                    blockquote { padding: 0 16px; color: #656d76; border-left: 4px solid #d1d9e0; }
+                `,
+                academic: `
+                    body { font-family: 'Times New Roman', serif; 
+                           max-width: 700px; margin: 0 auto; padding: 60px 40px; 
+                           line-height: 1.8; color: #000; font-size: 12pt; }
+                    h1 { text-align: center; margin-bottom: 30px; font-size: 18pt; }
+                    h2 { margin-top: 25px; font-size: 14pt; }
+                    h3 { margin-top: 20px; font-size: 12pt; }
+                    p { text-align: justify; margin-bottom: 12pt; }
+                    code, pre { font-family: 'Courier New', monospace; }
+                    pre { background: #f9f9f9; padding: 12px; border: 1px solid #ddd; }
+                `,
+                modern: `
+                    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; 
+                           max-width: 850px; margin: 0 auto; padding: 50px 30px; 
+                           line-height: 1.7; color: #1a1a1a; background: #fdfdfd; }
+                    h1 { font-weight: 700; font-size: 2.5em; margin-bottom: 20px; 
+                         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                         -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+                    h2 { font-weight: 600; color: #2d3748; border-left: 4px solid #4299e1; padding-left: 12px; }
+                    code { background: #f7fafc; padding: 3px 6px; border-radius: 4px; 
+                           font-family: 'JetBrains Mono', 'Fira Code', monospace; color: #e53e3e; }
+                    pre { background: #2d3748; color: #e2e8f0; padding: 20px; border-radius: 8px; 
+                          box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                    blockquote { background: #f7fafc; border-left: 4px solid #4299e1; 
+                                 padding: 16px 20px; border-radius: 0 8px 8px 0; margin: 20px 0; }
+                `
+            };
+
+            let html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Export NotesApp</title>
+    <style>${styles[style] || styles.minimal}</style>
+</head>
+<body>`;
+
+            if (exportOptions.includeToc && notesToExport.length > 1) {
+                html += '<h1>Table des matières</h1><ul>';
+                notesToExport.forEach(note => {
+                    html += `<li><a href="#note-${note.id}">${note.title}</a></li>`;
+                });
+                html += '</ul><hr>';
+            }
+
+            notesToExport.forEach(note => {
+                html += `<div id="note-${note.id}">`;
+                html += `<h1>${note.title}</h1>`;
+                
+                if (exportOptions.includeMetadata) {
+                    html += `<p><small>
+                        Créé: ${new Date(note.createdAt).toLocaleDateString('fr-FR')} | 
+                        Modifié: ${new Date(note.updatedAt).toLocaleDateString('fr-FR')}
+                    </small></p>`;
+                }
+                
+                html += marked.parse(note.content || '');
+                html += '</div><hr>';
+            });
+
+            html += '</body></html>';
+            return html;
+        }
+
+        // Convert HTML to PDF (client-side simulation)
+        async function generatePDF(htmlContent, filename) {
+            // Pour une vraie conversion PDF, il faudrait utiliser une bibliothèque comme jsPDF ou Puppeteer
+            // Ici on simule avec un HTML stylé pour impression
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+            
+            // Ajouter styles pour impression
+            const printStyle = printWindow.document.createElement('style');
+            printStyle.textContent = `
+                @media print {
+                    body { margin: 0; }
+                    @page { margin: 2cm; }
+                }
+            `;
+            printWindow.document.head.appendChild(printStyle);
+            
+            setTimeout(() => {
+                printWindow.print();
+            }, 1000);
+        }
+
+        // Start export process
+        async function startAdvancedExport() {
+            if (!selectedExportFormat) return;
+            
+            const notesToExport = getNotesToExport();
+            if (notesToExport.length === 0) {
+                alert('Aucune note à exporter !');
+                return;
+            }
+
+            const scope = document.querySelector('input[name="exportScope"]:checked').value;
+            const style = document.getElementById('documentStyle').value;
+            
+            showProgress('Préparation de l\'export...', `${notesToExport.length} note(s) sélectionnée(s)`);
+            
+            try {
+                await new Promise(resolve => setTimeout(resolve, 500)); // Simulation
+                
+                switch (selectedExportFormat) {
+                    case 'html':
+                        await exportAsHTML(notesToExport, style);
+                        break;
+                    case 'pdf':
+                        await exportAsPDF(notesToExport, style);
+                        break;
+                    case 'txt':
+                        await exportAsText(notesToExport);
+                        break;
+                    case 'docx':
+                        await exportAsDocx(notesToExport);
+                        break;
+                    case 'epub':
+                        await exportAsEpub(notesToExport);
+                        break;
+                    case 'zip':
+                        await exportAsZip(notesToExport);
+                        break;
+                    default:
+                        throw new Error('Format non supporté');
+                }
+                
+                hideProgress();
+                hideAdvancedExportModal();
+                
+            } catch (error) {
+                hideProgress();
+                alert('Erreur lors de l\'export: ' + error.message);
+            }
+        }
+
+        // Export functions for different formats
+        async function exportAsHTML(notesToExport, style) {
+            updateProgress('Génération du HTML...', 'Application des styles');
+            
+            const htmlContent = generateStyledHTML(notesToExport, style);
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `export-notesapp-${new Date().toISOString().split('T')[0]}.html`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+        }
+
+        async function exportAsPDF(notesToExport, style) {
+            updateProgress('Génération du PDF...', 'Conversion en cours');
+            
+            const htmlContent = generateStyledHTML(notesToExport, style);
+            await generatePDF(htmlContent, `export-notesapp-${new Date().toISOString().split('T')[0]}.pdf`);
+        }
+
+        async function exportAsText(notesToExport) {
+            updateProgress('Génération du fichier texte...', 'Conversion en texte brut');
+            
+            let textContent = '';
+            
+            notesToExport.forEach(note => {
+                textContent += `# ${note.title}\n\n`;
+                
+                if (exportOptions.includeMetadata) {
+                    textContent += `Créé: ${new Date(note.createdAt).toLocaleDateString('fr-FR')}\n`;
+                    textContent += `Modifié: ${new Date(note.updatedAt).toLocaleDateString('fr-FR')}\n\n`;
+                }
+                
+                textContent += note.content + '\n\n' + '='.repeat(50) + '\n\n';
+            });
+            
+            const blob = new Blob([textContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `export-notesapp-${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+        }
+
+        async function exportAsDocx(notesToExport) {
+            updateProgress('Génération du DOCX...', 'Format Microsoft Word');
+            
+            // Simulation - pour un vrai DOCX, il faudrait une bibliothèque comme docx
+            const htmlContent = generateStyledHTML(notesToExport, 'academic');
+            const blob = new Blob([htmlContent], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `export-notesapp-${new Date().toISOString().split('T')[0]}.docx`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+        }
+
+        async function exportAsEpub(notesToExport) {
+            updateProgress('Génération de l\'EPUB...', 'Format livre électronique');
+            
+            // Simulation - pour un vrai EPUB, il faudrait une bibliothèque spécialisée
+            const htmlContent = generateStyledHTML(notesToExport, 'minimal');
+            const blob = new Blob([htmlContent], { type: 'application/epub+zip' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `export-notesapp-${new Date().toISOString().split('T')[0]}.epub`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+        }
+
+        async function exportAsZip(notesToExport) {
+            updateProgress('Création de l\'archive ZIP...', 'Compression des fichiers');
+            
+            // Simulation d'une archive ZIP avec tous les fichiers markdown
+            let zipContent = '';
+            
+            notesToExport.forEach(note => {
+                const filename = getSafeFilename(note.title) + '.md';
+                const frontmatter = `---\ntitle: ${note.title}\ncreated: ${note.createdAt}\nupdated: ${note.updatedAt}\n---\n\n`;
+                zipContent += `=== ${filename} ===\n${frontmatter}${note.content}\n\n`;
+            });
+            
+            const blob = new Blob([zipContent], { type: 'application/zip' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `export-notesapp-${new Date().toISOString().split('T')[0]}.zip`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+        }
+
+        // Cloud export functions
+        async function exportToGitHub() {
+            const notesToExport = getNotesToExport();
+            if (notesToExport.length === 0) {
+                alert('Aucune note à exporter !');
+                return;
+            }
+
+            // Simulation - pour GitHub Gist, il faudrait l'API GitHub
+            const gistContent = notesToExport.map(note => 
+                `# ${note.title}\n\n${note.content}`
+            ).join('\n\n---\n\n');
+            
+            const gistUrl = `https://gist.github.com/new?content=${encodeURIComponent(gistContent)}`;
+            window.open(gistUrl, '_blank');
+        }
+
+        async function exportToPastebin() {
+            const notesToExport = getNotesToExport();
+            if (notesToExport.length === 0) {
+                alert('Aucune note à exporter !');
+                return;
+            }
+
+            const content = notesToExport.map(note => 
+                `${note.title}\n${'='.repeat(note.title.length)}\n\n${note.content}`
+            ).join('\n\n' + '-'.repeat(50) + '\n\n');
+            
+            // Simulation - ouvrir Pastebin avec le contenu
+            const pastebinUrl = `https://pastebin.com/`;
+            window.open(pastebinUrl, '_blank');
+            
+            // Copier le contenu dans le presse-papier
+            try {
+                await navigator.clipboard.writeText(content);
+                alert('Contenu copié dans le presse-papier ! Vous pouvez le coller sur Pastebin.');
+            } catch (error) {
+                console.log('Impossible de copier automatiquement');
+            }
+        }
+    </script>
+</body>
+</html>
